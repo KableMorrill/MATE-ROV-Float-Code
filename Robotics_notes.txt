@@ -1,0 +1,188 @@
+Testing timestamps stops taking readings after 28s mark
+Subsequent runs give 0 timestamps for all 30 readings
+Unpowering the Arduino uno and plugging it back in keeps this the same
+Unpowering the float and plugging it back in returns the state to read the first 28 seconds
+Depth range from -0.02 to -0.25 on desk
+On one occasion, timestamp 28 gave a reading, while all other tests gave nothing for this
+
+
+Need to show 7 sequential data packets in a 30 second timeframe that are between 2.27 and 2.83 meters
+If it goes outside of range, the counter resets
+
+If reader is offset by a specific amount, simply communicate this to the judge
+
+the 7 sequentials: 0, 5, 10, 15, 20, 25, 30 seconds
+
+We may want to add a 0 offset for surface readings for our depth sensor to deal with the range
+
+bring a meterstick to next test to check actual depth at surface in freshwater
+
+vertical profile in a 1mx1m hole -- as long as it's reasonably vertical, should not have issues
+
+LEDs are allowed for indicating state
+
+have arrays fill constantly once at desired depth, but from the start if it falls back outside, until all 30 are filled. Instead of transmitting complete packet, select only the necessary timestamps for sending.
+
+void sendData takes all data from each "packet" and combines them into a single array for sending. Changing this logic to only select the desired timestamps for this final array seems the most prudent, though we will need to account for the 4 different graphs (I believe).
+
+setupPeer/removePeer stuff should be the same
+
+
+void setup()
+	Should remain the same
+bool setupPeer()
+	Needs to change the connection text to the document specifics
+void DEFCON1()
+	Should remain the same
+void sendData()
+	Needs to change the data sent
+void OnDataSent(const esp_now_send_info_t *info, esp_now_send_status_t status)
+	???
+void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len)
+	responsible for controls, so worth reviewing
+void moveFloatDown()
+	Should remain the same
+void moveFloatUp()
+	Should remain the same
+void stopFloat()
+	Should remain the same
+float readDepthSensor()
+	Should remain the same
+void loop()
+	Logic overhaul required
+
+
+DepthSensor_NewTest
+
+3 potentiometer modes:
+	time = 1.0: automatic process
+	time = 2.0: manual movement
+	time = 3.0: send data to station
+
+25cm from bottom, 42.4cm from top
+
+NOTE: need to account for buoyancy engine overshoot in ascent/descent. Add a variable speed as distance to target lowers.
+NOTE: Need to update the mission-station code to reflect the new modes/data format of the float
+NOTE: green and blue LED hookups should be added to the float to allow for depth zone info
+
+Core design changes:
+	State machine for each step of the automated process instead of if/else chain
+
+------------------
+Code Review Notes:
+
+--PressureGraph--
+	A second button value is assigned to D22 to initiate data transfer after recovery
+	Buttons: START and TRANSMIT
+	Press START to start the device, TRANSMIT once to request data transfer, TRANSMIT again to reprint all data
+	command 1.0 indicates START, command 3.0 indicates TRANSMIT
+		Does this imply it's not just the button? Is it the potentiometer? It distinctly calls out two buttons, but frequently references the setting of the potentiometer as well.
+		Consider asking this to be corrected to just 2 buttons
+
+	Verify that the wifi is actually torn down, as it appears it might immediately go back up (or, the mission station simply attempts to reconnect and only succeeds when the device is returned)
+
+--DepthSensor--
+	Claims position 2 and 15 are used for blue and green LEDS respectively, consider implementing on the float
+	
+
+
+
+C:\Users\kable\OneDrive\Documents\Robotics\DepthSensor_NewTests\DepthSensor_DryTest\DepthSensor_DryTest.ino: In function 'void setup()':
+C:\Users\kable\OneDrive\Documents\Robotics\DepthSensor_NewTests\DepthSensor_DryTest\DepthSensor_DryTest.ino:159:5: error: 'ledcSetup' was not declared in this scope
+  159 |     ledcSetup(PWM_CHANNEL_IN1, PWM_FREQ, PWM_RESOLUTION);
+      |     ^~~~~~~~~
+C:\Users\kable\OneDrive\Documents\Robotics\DepthSensor_NewTests\DepthSensor_DryTest\DepthSensor_DryTest.ino:161:5: error: 'ledcAttachPin' was not declared in this scope; did you mean 'ledcAttach'?
+  161 |     ledcAttachPin(IN1, PWM_CHANNEL_IN1);
+      |     ^~~~~~~~~~~~~
+      |     ledcAttach
+C:\Users\kable\OneDrive\Documents\Robotics\DepthSensor_NewTests\DepthSensor_DryTest\DepthSensor_DryTest.ino: In function 'bool setupPeer()':
+C:\Users\kable\OneDrive\Documents\Robotics\DepthSensor_NewTests\DepthSensor_DryTest\DepthSensor_DryTest.ino:269:30: error: invalid conversion from 'void (*)(const uint8_t*, esp_now_send_status_t)' {aka 'void (*)(const unsigned char*, esp_now_send_status_t)'} to 'esp_now_send_cb_t' {aka 'void (*)(const wifi_tx_info_t*, esp_now_send_status_t)'} [-fpermissive]
+  269 |     esp_now_register_send_cb(OnDataSent);
+      |                              ^~~~~~~~~~
+      |                              |
+      |                              void (*)(const uint8_t*, esp_now_send_status_t) {aka void (*)(const unsigned char*, esp_now_send_status_t)}
+In file included from C:\Users\kable\OneDrive\Documents\Robotics\DepthSensor_NewTests\DepthSensor_DryTest\DepthSensor_DryTest.ino:1:
+C:\Users\kable\AppData\Local\Arduino15\packages\esp32\tools\esp32-arduino-libs\idf-release_v5.5-07e9bf49-v1\esp32/include/esp_wifi/include/esp_now.h:210:54: note:   initializing argument 1 of 'esp_err_t esp_now_register_send_cb(esp_now_send_cb_t)'
+  210 | esp_err_t esp_now_register_send_cb(esp_now_send_cb_t cb);
+      |                                    ~~~~~~~~~~~~~~~~~~^~
+exit status 1
+
+Compilation error: 'ledcSetup' was not declared in this scope
+
+
+
+
+
+C:\Users\kable\OneDrive\Documents\Robotics\DepthSensor_NewTests\PressureGraph\PressureGraph.ino: In function 'bool setupPeer()':
+C:\Users\kable\OneDrive\Documents\Robotics\DepthSensor_NewTests\PressureGraph\PressureGraph.ino:96:30: error: invalid conversion from 'void (*)(const uint8_t*, esp_now_send_status_t)' {aka 'void (*)(const unsigned char*, esp_now_send_status_t)'} to 'esp_now_send_cb_t' {aka 'void (*)(const wifi_tx_info_t*, esp_now_send_status_t)'} [-fpermissive]
+   96 |     esp_now_register_send_cb(OnDataSent);
+      |                              ^~~~~~~~~~
+      |                              |
+      |                              void (*)(const uint8_t*, esp_now_send_status_t) {aka void (*)(const unsigned char*, esp_now_send_status_t)}
+In file included from C:\Users\kable\OneDrive\Documents\Robotics\DepthSensor_NewTests\PressureGraph\PressureGraph.ino:1:
+C:\Users\kable\AppData\Local\Arduino15\packages\esp32\tools\esp32-arduino-libs\idf-release_v5.5-07e9bf49-v1\esp32/include/esp_wifi/include/esp_now.h:210:54: note:   initializing argument 1 of 'esp_err_t esp_now_register_send_cb(esp_now_send_cb_t)'
+
+
+
+
+
+
+
+
+
+
+
+DryTest 1:
+-Max capacity is at the 320 line
+
+
+
+
+
+
+
+
+Please consider the file "DepthSensor_DryTest.ino" located in "C:\Users\kable\OneDrive\Documents\Robotics\DepthSensor_NewTests\DepthSensor_DryTest" and the file "PressureGraph.ino" located in "C:\Users\kable\OneDrive\Documents\Robotics\DepthSensor_NewTests\PressureGraph". I ran this combination on pirahna esp-32 arduino loaded onto the vertical profiling float and the mission station board respectively. Below is the observed behavior:
+
+-As soon as wifi connected, the dive sequence began, sending the Pre-Dive packet:
+
+--- Pre-Dive Packet Received ---
+Company: PN00
+Time: 0.00s
+Pressure: 89.06 kPa
+Sensor depth: -1.2195 m
+Bottom depth: -0.9695 m
+Top depth: -1.6435 m
+--------------------------------
+
+-No button was plugged into pin 22
+-Note that the depth sensor was located on the surface and was not submerged, making the pressure/sensor depth concerning
+-The float appeared to attempt ascending briefly despite being in its default state -- there was concern of damage being dealt to the buoyancy engine
+-The float then descended to a specific depth and held for about 30 seconds, the motors occasionally making small clicking sounds as though attempting to make micro adjustments without applying enough strength to move.
+-The float then attempted to descend further without slowing, eventually maxing out the buoyancy engine depth and still attempting to keep going (stalled and spinning the syringe itself). After 30 seconds without stopping, the battery was disconnected to prevent damage to the device.
+
+Please review these files and propose changes to be made to prevent issues like these. I understand that these test values were likely not scaled correctly for the device, but I want to ensure that in subsequent dry (fake depths) tests and water (real depths) tests the motor will not attempt to exceed the buoyancy engine's physical range. Furthermore, I want a means of physically controlling the motor based on the potentiometer reading such that I can return the buoyancy engine to a default position. Physical limitations of the missions station are thus:
+
+1 button, attached to pin D21
+Now added, 1 button attached to pin D22
+1 potentiometer, attached to pin D4
+
+I can add another button or potentiometer if needed to add functionality. Note that the device is a ESP32-WROOM-32. Ideally, the potentiometer currently installed should not control anything but manual motor control, and the 2 other modes (dive and data transmission) should be tied to their respective buttons. A third button enabling/disabling manual control via the potentiometer would be my preferred method.
+
+
+
+------------
+
+12 MAX rotations (11 to be safe on the lower end)
+
+
+------------
+
+Requests:
+
+-A button that allows us to set encoder value rather than forcing us to 0 out via power cycle
+-Program should be able to run repeatedly without power cycling
+
+
+
+*Consider using programming threads to run other checks concurrently with the main loop

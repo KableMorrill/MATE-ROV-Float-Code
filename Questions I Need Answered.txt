@@ -1,0 +1,78 @@
+Questions I Need Answered
+Hardware — critical for correct code:
+
+ESP32 board package version in Arduino IDE — Your error logs show IDF v5.5, which means you're on the ESP32 Arduino core 3.x. Can you confirm? (Open Arduino IDE > Boards Manager > search "esp32" and tell me the version number.) This matters because core 3.x changed the ESP-NOW callback signatures AND removed ledcSetup()/ledcAttachPin() in favor of ledcAttach(). This is the source of your compilation errors.
+A: Yes, I am currently on v3.3.7 at the moment; the errors you were seeing may be outdated, as they were in my old notes while working through problems.
+
+Depth sensor model — The conversion formula ((312.5 * (mAmps - 4)) / 1000) implies a 4-20mA submersible pressure transducer rated for 0-5m range. Is that right? What brand/model?
+A: That is correct, it is written on the side. DFROBOT Model GL-136.
+
+Motor + syringe coupling — Your notes say 11 rotations is the full stroke. Is this a lead screw driving the syringe plunger? Does the motor have a built-in gearbox? When you described it "spinning the syringe itself," does that mean the coupling slipped and the motor was free-spinning?
+Yes, this is a leadscrew driving the syringe plunger. The motor is a gobuilda 5203 series yellow jacket. The "spinning" I referred to was the motor maxing out and, instead of stopping, spinning the whole attachment to the screw, causing the plunger to rotate within the syringe (and as the plunger is watertight against the syringe, this caused concerning strain against the seal between syringe and plunger).
+
+Syringe volume — How many mL/cc is the syringe? This determines how much buoyancy change you get per motor revolution and is essential for knowing whether the float CAN reach 2.5m with its current syringe capacity.
+A: About 320 ml around the point where the motor maxes out, though the plunger can only go down to about 40 ml, leaving the rest as a gap mix of air and liquid (likely to be all liquid after water tests). This is to say that the syringe will like start filled with 40ml of liquid or 40ml of air depending on use.
+
+Float weight and total volume — What does the float weigh dry (no water in syringe)? What's its approximate total displaced volume? With the syringe empty, does the float naturally float on the surface or is it close to neutral?
+A: Float weight is currently unknown, but we attach weights to achieve neutral buoyancy. Total volume is 27in length by 8in diameter cylinder, though this is a total volume and not internal space. Approximate total displaced volume is unknown. As it stands, we're looking to avoid judging depth potential based on physical attributes like these (despite how simple it would be in theory) as we want to rely on relative measurements instead (such as adjusting itself based on current depth to approach desired depth/avoid overshooting).
+
+Battery — What voltage and capacity? (Affects motor speed/torque and total run time.)
+A: Battery is MightyMax Battery model ML-5-12.
+
+Motor driver — L298N, or something else? Does it support PWM input on the H-bridge enable pins, or are you just driving IN1/IN2 directly? (This determines whether PWM speed control actually works on your setup.)
+A: Yes, it is an L298N. It supports PWM input, and while we have just been doing direct IN3/IN4 for now, we will be adding variable motor speed via a PWM pin (currently do not know which pinout this will be).
+
+Do you have the third button (D23) wired? — The latest PressureGraph expects three buttons. If you only have two, I need to know.
+A: D23 is wired on the mission station station breadboard at the moment.
+
+Physical behavior — critical for simulation accuracy:
+
+In water testing, approximately how many motor revolutions does it take to descend 1 meter? (Or: at what depth does the float settle with the syringe fully extended?) This is the single most important calibration number for getting the code to work in water.
+A: We have not been able to test this. A test version that rotates the motor 1 revolution, holds, rotates back, and reports data each second of the process could be useful in determining this, but in order to test this I need to know that the code works first so that it will not simply sink to the bottom and potentially break the syringe. While this version would be a useful step, I need a drytest that shows promising results first.
+
+What does the depth sensor read at the surface on your desk? Your notes say -0.02 to -0.25m. Is it consistent or does it drift?
+A: The range mentioned is the range of variation, with most readings clustering about evenly towards either extreme, often bouncing in streaks back and forth around 0cm to 4cm and 22cm to 27cm on the surface. I have been told that this is an expected and tolerable error range for this model of depth sensor, but I would appreciate a double check on this.
+
+Pool depth available for testing? — The competition is 3m. Are you testing in a pool that can accommodate the full 2.5m descent?
+A: The pools we are currently able to test on have about 5ft of depth (1.5m). Test builds should account for half range depth for now.
+
+Freshwater or EGADS for your regional testing? — The EGADS correction factor of 1/1.025 only matters in the ice tank.
+A: The pools we are currently able to test on are freshwater. Test builds should account for freshwater pools for now.
+
+Software:
+
+Arduino IDE version? (1.x legacy or 2.x?)
+A: v2.3.8
+
+ESP32Encoder library version? (There are a few forks with different APIs.)
+A: v0.12.0
+
+
+
+------------------------------
+
+A few new questions on my part for you regarding the markdown file you put together on the original code:
+
+"Station sends a START command (time=1.0) vs MANUAL MOTOR command (time=2.0) vs TRANSMIT command (time=3.0)" is this the potentiometer angle?
+
+4. `buoyEnc.attachHalfQuad(ENC1, ENC2)` — Tells the encoder library which pins to
+   monitor. "Half quad" means it counts on one edge of one channel (vs full quadrature
+   which counts both edges of both channels = 4x resolution). With 2600 PPR in half-quad,
+   you get 2600 counts per revolution.
+	Please explain this further, I don't understand this mention of edges, channels, resolution, and PPR.
+
+I may be mistaken, but to me the code reads that potentiometer readings are only taken when wifi is down. How are potentiometer readings taken only when WiFi is off if it is being sent in real time to the float?
+
+Note: The potentiometer has been unreliable in practice, but we strongly believe it is a hardware issue, as our setup is flimsily plugged in with plug-and-play buttons, wires, and and a potentiometer on a typical breadboard. Just in case, please ensure that potentiometer readings should be able to get through reliably. Observed behavior is inconsistent detection of ascent commands during manual control, while descent still works fine. Furthermore, when the potentiometer falls out of the board the float will descend on its own.
+
+Secondary note: I have just updated a number of libraries and platforms. Please let me know if you need to know anything else regarding these versions.
+
+
+
+PWM affects power output, which will affect your motor speed
+analog rate would be the command for variable motor speed
+*Need to know pinout to update code 
+
+Apparently we may need an update to manual control -- wifi teardown is constantly looping on and off per command (potentiometer reading in a direction introduces a connection, changing direction kills the connection).
+
+Also, we have a problem with the range of values seen in the depth sensor -- apparently it should only vary by 5cm or so.

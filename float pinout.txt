@@ -1,0 +1,10 @@
+1				1 -- VN (Power, hub)
+2				2 -- GND --- (Ground, hub) 
+3 D15 (ENB, var. motor control)	3	    |
+4				4           |
+5 D4 (motor, ch. B)		5           |
+6				6           |
+7 D17 (motor, ch. A)		7           |
+8				8 -- D25 --- (depth sensor)
+9 D18 (IN3, direction A)	9
+10 D19 (IN4, direction B)	10

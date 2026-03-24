@@ -1,0 +1,21 @@
+# Python virtual environments
+.venv/
+__pycache__/
+
+# IDE
+.vscode/
+
+# Claude Code local config
+.claude/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large binary files
+*.pdf
+
+# Non-float project folders (ROV code, unrelated tests)
+Mate-ROV LOCAL/
+Servo_Test/
+TempSens/
